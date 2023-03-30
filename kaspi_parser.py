@@ -1,6 +1,6 @@
+import requests
 import requests_html
 from bs4 import BeautifulSoup
-from requests import Response
 from requests_html import HTMLSession
 
 
@@ -10,9 +10,15 @@ def render_page(func):
     def wrapper(*args, **kwargs):
         try:
             page = kwargs.get('page')
+            additional_path = kwargs.get('additional_path')
+
+            if not additional_path:
+                additional_path = ''
+
+            print(page, additional_path)
 
             # Expecting response from page
-            _response = HTMLSession().get(page)
+            _response = HTMLSession().get(page + additional_path)
 
             # Since server returns any other status codes than 200
             # we have nothing to parse at all
@@ -20,31 +26,28 @@ def render_page(func):
                 # Since we absolutely sure that most of new age marketplaces
                 # use JavaScript to "hide" html content from clientside based
                 # scripts, we first of all should render page to get html content
-                _response.html.render()
+                _response.html.render(timeout=20)
             else:
                 return
 
-            return func(*args, response_html=_response.html.html, page=page)
+            return func(*args, response_html=_response.html.html, page=page, additional_path=additional_path)
         except Exception as e:
             print(e)
 
     return wrapper
 
 
-class MainPage:
-    """ Parsing main page for links of particular category """
+class ParsePage:
+    """ Parsing page for links of particular item """
 
     def __init__(self,
-                 main_page: str,
                  target_page: str,
                  parser: BeautifulSoup = BeautifulSoup,
-                 desired_city: str = 'rudniy',
+                 desired_city: str = None,
                  desired_category: str = None,
                  desired_good: str = None
                  ) -> None:
 
-        # Apply main page
-        self.main_page = main_page
         # Apply target page
         self.target_page = target_page
         # If we want parse particular city
@@ -57,43 +60,53 @@ class MainPage:
         self._parser = parser
 
     @render_page
-    def get_links_of_cateogies(self, tag_name: str, class_name: str, response_html: str, page: str = None) -> list | None:
+    def get_links(self,
+                  tag_name: str,
+                  class_name: str,
+                  response_html: str,
+                  additional_path: str = '',
+                  page: str = '',
+                  ) -> list | None:
         """ Retrieves all categories included in page
             if desired_category has not been chosen """
 
+        print(page)
+
+        def get_links(page: str) -> list:
+            # If page is rendered successfully we can try to get data from it
+            content = self._parser(response_html, 'html.parser')
+
+            # Find all links belongs to all categories
+            relative_links = [_object['href'] for _object in content.findAll(tag_name, class_=class_name, href=True)]
+
+            # Suppose we have some additional directories on server
+            # like www.store.com/shop -> "/shop" is an additional part
+            if not additional_path:
+                page = page + additional_path
+
+            # Create absolute links
+            absolute_links = list(
+                filter(lambda link: additional_path in link, map(lambda link: page + link, relative_links)))
+
+            return absolute_links
+
         if not self.desired_category:
             try:
-                # If page is rendered successfully we can try to get data from it
-                content = self._parser(response_html, 'html.parser')
-
-                # Find all links belongs to all categories
-                relative_links = [_object['href'] for _object in content.findAll(tag_name, class_=class_name, href=True)]
-
-                # Create absolute links
-                absolute_links = list(map(lambda link: page + link, relative_links))
-
-                return absolute_links
+                return get_links(page)
             except Exception as e:
                 print(e)
                 return
         else:
-            return self.get_link_of_category()
+            print(f'Desired category {self.desired_category} is chosen! Searching this particular category only!')
+            try:
+                return [link for link in get_links(page) if self.desired_category in link]
+            except Exception as e:
+                print(e)
+                return
 
-    def get_link_of_category(self, ):
-        pass
+kaspi = ParsePage('https://kaspi.kz')
+# print(kaspi.get_links('a', 'nav__el-link', page='https://kaspi.kz', additional_path='/shop'))
+print(kaspi.get_links('div', 'card__name', page='https://kaspi.kz/shop/c/tv_audio/'))
 
-
-m = MainPage('https://kaspi.kz', 'https://kaspi.kz/shop')
-print(m.get_links_of_cateogies('a', 'nav__el-link', page='https://kaspi.kz/shop'))
-
-# session = requests_html.HTMLSession()
-# response = session.get('https://kaspi.kz/shop/')
-# print(response.status_code)
-# response.html.render()
-#
-# soup = BeautifulSoup(response.html.html, 'html.parser')
-#
-# x = soup.findAll('a', class_='nav__el-link', href=True)
-#
-# for i in x:
-#     print(i['href'])
+# technodom = ParsePage('https://www.technodom.kz')
+# print(technodom.get_links('a', '', page='https://www.technodom.kz', additional_path='/catalog'))
