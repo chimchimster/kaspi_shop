@@ -79,17 +79,34 @@ class ParsePage:
 class RetrieveData:
     """ Retrieves data of particular good from page """
 
+    def __init__(self,
+                title_xpath: str,
+                price_xpath: str,
+                rating_xpath: str,
+                image_xpath: str,
+                ):
+        self.title_xpath = title_xpath
+        self.price_xpath = price_xpath
+        self.rating_xpath = rating_xpath
+        self.image_xpath = image_xpath
+
+
     @render_page
     def get_data(self,
-                  response_html: str,
-                  additional_path: str = '',
-                  page: str = '',
-                  ) -> list | None:
+                 response_html: str,
+                 additional_path: str = '',
+                 page: str = '',
+                 ) -> list | None:
 
         # Mkay here is title... Tomorrow must get all others
-        title = response_html.xpath('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/h1')[0].text
+        title = response_html.xpath(self.title_xpath)[0].text
         print(title)
-
+        price = response_html.xpath(self.price_xpath)[0].text
+        print(price)
+        rating = response_html.xpath(self.rating_xpath)[0].text
+        print(rating)
+        image = response_html.xpath(self.image_xpath)[0].attrs['src']
+        print(image)
 
 # kaspi = ParsePage()
 # print(kaspi.get_links('a', 'nav__el-link', page='https://kaspi.kz', additional_path='/shop'))
@@ -103,5 +120,8 @@ class RetrieveData:
 # for link in kaspi.get_links(page='https://kaspi.kz/shop/rydniy/c/categories/'):
 #     print(kaspi.get_links(page=link))
 
-r = RetrieveData()
+r = RetrieveData('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/h1',
+                 '/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[3]/div[1]/div[2]',
+                 '/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[2]/a',
+                 '/html/body/div[1]/div[5]/div/div[1]/div/div[1]/div/div[1]/div/div[1]/ul/li/div/img')
 r.get_data(page='https://kaspi.kz/shop/p/igrovoi-tsentr-lemengkeku-logarifmicheskaja-doska-mul-tikolor-102413320/?c=392410000#!/item')
