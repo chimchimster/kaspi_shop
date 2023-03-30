@@ -1,7 +1,7 @@
-import requests
 import requests_html
 from bs4 import BeautifulSoup
 from requests_html import HTMLSession
+
 
 
 def render_page(func):
@@ -10,12 +10,7 @@ def render_page(func):
     def wrapper(*args, **kwargs):
         try:
             page = kwargs.get('page')
-            additional_path = kwargs.get('additional_path')
-
-            if not additional_path:
-                additional_path = ''
-
-            print(page, additional_path)
+            additional_path = kwargs.get('additional_path') if kwargs.get('additional_path') else ''
 
             # Expecting response from page
             _response = HTMLSession().get(page + additional_path)
@@ -30,7 +25,7 @@ def render_page(func):
             else:
                 return
 
-            return func(*args, response_html=_response.html.html, page=page, additional_path=additional_path)
+            return func(*args, response_html=_response.html, page=page, additional_path=additional_path)
         except Exception as e:
             print(e)
 
@@ -41,28 +36,20 @@ class ParsePage:
     """ Parsing page for links of particular item """
 
     def __init__(self,
-                 target_page: str,
-                 parser: BeautifulSoup = BeautifulSoup,
                  desired_city: str = None,
                  desired_category: str = None,
                  desired_good: str = None
                  ) -> None:
 
-        # Apply target page
-        self.target_page = target_page
         # If we want parse particular city
         self.desired_city = desired_city
         # If we want parse particular category
         self.desired_category = desired_category
         # If we want parse particular good
         self.desired_good = desired_good
-        # Apply parser
-        self._parser = parser
 
     @render_page
     def get_links(self,
-                  tag_name: str,
-                  class_name: str,
                   response_html: str,
                   additional_path: str = '',
                   page: str = '',
@@ -70,25 +57,9 @@ class ParsePage:
         """ Retrieves all categories included in page
             if desired_category has not been chosen """
 
-        print(page)
-
         def get_links(page: str) -> list:
-            # If page is rendered successfully we can try to get data from it
-            content = self._parser(response_html, 'html.parser')
-
-            # Find all links belongs to all categories
-            relative_links = [_object['href'] for _object in content.findAll(tag_name, class_=class_name, href=True)]
-
-            # Suppose we have some additional directories on server
-            # like www.store.com/shop -> "/shop" is an additional part
-            if not additional_path:
-                page = page + additional_path
-
-            # Create absolute links
-            absolute_links = list(
-                filter(lambda link: additional_path in link, map(lambda link: page + link, relative_links)))
-
-            return absolute_links
+            # Find all links belongs to page
+            return list(filter(lambda link: additional_path in link, [link for link in response_html.links]))
 
         if not self.desired_category:
             try:
@@ -104,9 +75,33 @@ class ParsePage:
                 print(e)
                 return
 
-kaspi = ParsePage('https://kaspi.kz')
+
+class RetrieveData:
+    """ Retrieves data of particular good from page """
+
+    @render_page
+    def get_data(self,
+                  response_html: str,
+                  additional_path: str = '',
+                  page: str = '',
+                  ) -> list | None:
+
+        # Mkay here is title... Tomorrow must get all others
+        title = response_html.xpath('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/h1')[0].text
+        print(title)
+
+
+# kaspi = ParsePage()
 # print(kaspi.get_links('a', 'nav__el-link', page='https://kaspi.kz', additional_path='/shop'))
-print(kaspi.get_links('div', 'card__name', page='https://kaspi.kz/shop/c/tv_audio/'))
+# print(kaspi.get_links(page='https://kaspi.kz/shop/rydniy/c/accessories%20for%20steadicams/?q=')
+# for link in kaspi.get_links(page='https://kaspi.kz/shop/rydniy/c/categories/'):
+#     print(link)
 
 # technodom = ParsePage('https://www.technodom.kz')
 # print(technodom.get_links('a', '', page='https://www.technodom.kz', additional_path='/catalog'))
+
+# for link in kaspi.get_links(page='https://kaspi.kz/shop/rydniy/c/categories/'):
+#     print(kaspi.get_links(page=link))
+
+r = RetrieveData()
+r.get_data(page='https://kaspi.kz/shop/p/igrovoi-tsentr-lemengkeku-logarifmicheskaja-doska-mul-tikolor-102413320/?c=392410000#!/item')
