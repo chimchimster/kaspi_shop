@@ -1,4 +1,4 @@
-import requests_html
+import re
 from typing import Optional, List, Dict
 from bs4 import BeautifulSoup
 from requests_html import HTMLSession
@@ -89,9 +89,10 @@ class RetrieveData:
                 reviews: tuple,
                 description: tuple,
                 product_code: tuple,
+                availability: tuple,
                 ) -> None:
         """ Each object in __init__ must be tuple (xpath, attrs)
-            if there is no attrs it will be simply None """
+            no worries if there is no attrs """
 
         self.title = title
         self.price = price
@@ -102,6 +103,7 @@ class RetrieveData:
         self.reviews = reviews
         self.description = description
         self.product_code = product_code
+        self.availability = availability
 
     @render_page
     def get_data(self,
@@ -121,6 +123,7 @@ class RetrieveData:
             'reviews': None,
             'description': None,
             'product_code': None,
+            'availability': None,
         }
 
         def fill_collection(_key: str, _xpath: str, attrs: str = None) -> None:
@@ -129,6 +132,10 @@ class RetrieveData:
 
             # Initialize parsed data for particular element
             data = None
+
+            # Could be a situation when we simply has no needed element on the page
+            if not _xpath:
+                return
 
             if not attrs:
                 try:
@@ -147,7 +154,7 @@ class RetrieveData:
 
             # If data successfully parsed let's add it to hash table
             if data:
-                parsed_data[_key] = data
+                parsed_data[_key] = re.sub(r'[\xa0\n]', '', str(data))
             else:
                 return
 
@@ -173,15 +180,45 @@ class RetrieveData:
 # for link in kaspi.get_links(page='https://kaspi.kz/shop/rydniy/c/categories/'):
 #     print(kaspi.get_links(page=link))
 
-r = RetrieveData(('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/h1',),
-                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[3]/div[1]/div[2]',),
-                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[3]/div[2]/div[2]',),
-                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[3]/div[2]/div[3]',),
-                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[2]/span', 'class'),
-                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[1]/div/div[1]/div/div[1]/ul/li/div/img', 'src'),
-                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[2]/a',),
-                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[2]',),
-                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[1]',),
-                 )
+# Kaspi
+r = RetrieveData(
+    ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/h1',),
+    ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[3]/div[1]/div[2]',),
+    ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[3]/div[2]/div[2]',),
+    ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[3]/div[2]/div[3]',),
+    ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[2]/span', 'class'),
+    ('/html/body/div[1]/div[5]/div/div[1]/div/div[1]/div/div[1]/div/div[1]/ul/li/div/img', 'src'),
+    ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[2]/a',),
+    ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[2]',),
+    ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[1]',),
+    ('',),
+    )
 
 print(r.get_data(page='https://kaspi.kz/shop/p/igrovoi-tsentr-lemengkeku-logarifmicheskaja-doska-mul-tikolor-102413320/?c=392410000#!/item'))
+
+# Sulpak
+r1 = RetrieveData(
+    ('/html/body/main/div[1]/div[2]/h1',),
+    ('/html/body/main/div[2]/div[2]/div[1]/div[1]/div/div/div[3]/div[2]/div[2]/div[1]/div[2]',),
+    ('',),
+    ('',),
+    ('',),
+    ('/html/body/main/div[2]/div[2]/div[1]/div[1]/div/div/div[2]/div[1]/div[3]/div[1]/a[1]/picture/img', 'src'),
+    ('/html/body/main/div[2]/div[2]/div[1]/div[1]/div/div/div[3]/div[1]/div[1]',),
+    ('/html/body/main/div[2]/div[2]/div[1]/div[1]/div/div/div[2]/div[2]/div/p[2]',),
+    ('',),
+    ('',),
+)
+
+print(r1.get_data(page='https://www.sulpak.kz/g/vstraivaemiye_duhoviye_shkafiy_hansa_boes684620/ust_kamenogorsk'))
+
+# self.title = title
+# self.price = price
+# self.installment_price = installment_price
+# self.installment_duration = installment_duration
+# self.rating = rating
+# self.image = image
+# self.reviews = reviews
+# self.description = description
+# self.product_code = product_code
+# self.availability = availability
