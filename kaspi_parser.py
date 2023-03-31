@@ -1,4 +1,5 @@
 import requests_html
+from typing import Optional, List, Dict
 from bs4 import BeautifulSoup
 from requests_html import HTMLSession
 
@@ -52,11 +53,11 @@ class ParsePage:
                   response_html: str,
                   additional_path: str = '',
                   page: str = '',
-                  ) -> list | None:
+                  ) -> Optional[List] | None:
         """ Retrieves all categories included in page
             if desired_category has not been chosen """
 
-        def get_links(page: str) -> list:
+        def get_links(page: str) -> Optional[List]:
             # Find all links belongs to page
             return list(filter(lambda link: additional_path in link, [link for link in response_html.links]))
 
@@ -79,52 +80,85 @@ class RetrieveData:
     """ Retrieves data of particular good from page """
 
     def __init__(self,
-                title_xpath: str,
-                price_xpath: str,
-                instatement_price_xpath: str,
-                instatement_duration_xpath: str,
-                rating_xpath: str,
-                image_xpath: str,
-                reviews_xpath: str,
-                description_xpath: str,
-                product_code_xpath: str,
+                title: tuple,
+                price: tuple,
+                installment_price: tuple,
+                installment_duration: tuple,
+                rating: tuple,
+                image: tuple,
+                reviews: tuple,
+                description: tuple,
+                product_code: tuple,
                 ) -> None:
+        """ Each object in __init__ must be tuple (xpath, attrs)
+            if there is no attrs it will be simply None """
 
-        self.title_xpath = title_xpath
-        self.price_xpath = price_xpath
-        self.instatement_price_xpath = instatement_price_xpath
-        self.instatement_duration_xpath = instatement_duration_xpath
-        self.rating_xpath = rating_xpath
-        self.image_xpath = image_xpath
-        self.reviews_xpath = reviews_xpath
-        self.description_xpath = description_xpath
-        self.product_code_xpath = product_code_xpath
+        self.title = title
+        self.price = price
+        self.installment_price = installment_price
+        self.installment_duration = installment_duration
+        self.rating = rating
+        self.image = image
+        self.reviews = reviews
+        self.description = description
+        self.product_code = product_code
 
     @render_page
     def get_data(self,
                  response_html: str,
                  additional_path: str = '',
                  page: str = '',
-                 ):
+                 ) -> Optional[Dict]:
 
-        title = response_html.xpath(self.title_xpath)[0].text
-        print(title)
-        price = response_html.xpath(self.price_xpath)[0].text
-        print(price)
-        instatement_price = response_html.xpath(self.instatement_price_xpath)[0].text
-        print(instatement_price)
-        instatement_duration = response_html.xpath(self.instatement_duration_xpath)[0].text
-        print(instatement_duration)
-        rating = response_html.xpath(self.rating_xpath)[0].attrs['class']
-        print(rating)
-        image = response_html.xpath(self.image_xpath)[0].attrs['src']
-        print(image)
-        reviews = response_html.xpath(self.reviews_xpath)[0].text
-        print(reviews)
-        description = response_html.xpath(self.description_xpath)[0].text
-        print(description)
-        product_code = response_html.xpath(self.product_code_xpath)[0].text
-        print(product_code)
+        # Collection of retrieved data from the page
+        parsed_data = {
+            'title': None,
+            'price': None,
+            'installment_price': None,
+            'installment_duration': None,
+            'rating': None,
+            'image': None,
+            'reviews': None,
+            'description': None,
+            'product_code': None,
+        }
+
+        def fill_collection(_key: str, _xpath: str, attrs: str = None) -> None:
+            """ Retrieves data from particular element
+                and stores it inside of hash table """
+
+            # Initialize parsed data for particular element
+            data = None
+
+            if not attrs:
+                try:
+                    # Get text only data
+                    data = response_html.xpath(_xpath)[0].text
+
+                except Exception as e:
+                    print(e)
+            else:
+                try:
+                    # Get attributes data
+                    data = response_html.xpath(_xpath)[0].attrs[attrs]
+
+                except Exception as e:
+                    print(e)
+
+            # If data successfully parsed let's add it to hash table
+            if data:
+                parsed_data[_key] = data
+            else:
+                return
+
+        # Fill hash table with all parsed data
+        for _key, xpath_attrs in self.__dict__.items():
+            if len(xpath_attrs) > 1:
+                fill_collection(_key, xpath_attrs[0], xpath_attrs[1])
+            else:
+                fill_collection(_key, xpath_attrs[0])
+
+        return parsed_data
 
 
 # kaspi = ParsePage()
@@ -139,15 +173,15 @@ class RetrieveData:
 # for link in kaspi.get_links(page='https://kaspi.kz/shop/rydniy/c/categories/'):
 #     print(kaspi.get_links(page=link))
 
-r = RetrieveData(title_xpath='/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/h1',
-                 price_xpath='/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[3]/div[1]/div[2]',
-                 instatement_price_xpath='/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[3]/div[2]/div[2]',
-                 instatement_duration_xpath='/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[3]/div[2]/div[3]',
-                 rating_xpath='/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[2]/span',
-                 image_xpath='/html/body/div[1]/div[5]/div/div[1]/div/div[1]/div/div[1]/div/div[1]/ul/li/div/img',
-                 reviews_xpath='/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[2]/a',
-                 description_xpath='/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[2]',
-                 product_code_xpath='/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[1]',
+r = RetrieveData(('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/h1',),
+                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[3]/div[1]/div[2]',),
+                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[3]/div[2]/div[2]',),
+                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[3]/div[2]/div[3]',),
+                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[2]/span', 'class'),
+                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[1]/div/div[1]/div/div[1]/ul/li/div/img', 'src'),
+                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[2]/a',),
+                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[2]',),
+                 ('/html/body/div[1]/div[5]/div/div[1]/div/div[2]/div/div[1]/div[1]',),
                  )
 
-r.get_data(page='https://kaspi.kz/shop/p/igrovoi-tsentr-lemengkeku-logarifmicheskaja-doska-mul-tikolor-102413320/?c=392410000#!/item')
+print(r.get_data(page='https://kaspi.kz/shop/p/igrovoi-tsentr-lemengkeku-logarifmicheskaja-doska-mul-tikolor-102413320/?c=392410000#!/item'))
